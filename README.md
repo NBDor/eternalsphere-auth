@@ -30,6 +30,19 @@ DB_SSLMODE=disable
 JWT_SECRET=your-secret-key
 ```
 
+## Project Structure
+```
+eternalsphere-auth/
+├── cmd/
+│   └── main.go              # Application entry point
+├── internal/
+│   ├── config/             # Configuration management
+│   ├── handlers/           # HTTP request handlers
+│   ├── models/             # Data models
+│   ├── repository/         # Database operations
+│   └── service/            # Business logic
+```
+
 ## API Endpoints
 
 ### POST /register
@@ -50,9 +63,23 @@ Authenticate user
     "password": "password123"
 }
 ```
+Response:
+```json
+{
+    "token": "jwt-access-token",
+    "refresh_token": "jwt-refresh-token"
+}
+```
 
 ### POST /refresh
-Refresh JWT token using refresh token
+Refresh JWT token using refresh token body
+Response:
+```json
+{
+    "token": "new-jwt-access-token",
+    "refresh_token": "new-jwt-refresh-token"
+}
+```
 
 ## Testing
 ```bash

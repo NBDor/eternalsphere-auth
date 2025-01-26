@@ -5,6 +5,7 @@ go 1.23.5
 require (
 	github.com/NBDor/eternalsphere-shared-go v0.0.0-20250126122622-d0c559a1dfa3
 	github.com/gin-gonic/gin v1.10.0
+	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/crypto v0.23.0
 )

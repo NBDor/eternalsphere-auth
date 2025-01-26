@@ -34,7 +34,7 @@ func main() {
 	userRepo := postgres.NewUserRepository(conn)
 
 	// Initialize services
-	authService := service.NewAuthService(userRepo)
+	authService := service.NewAuthService(userRepo, cfg.JWT.SecretKey)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(authService)

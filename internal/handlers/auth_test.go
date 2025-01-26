@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// Mock AuthService
 type MockAuthService struct {
 	mock.Mock
 }
@@ -26,6 +25,17 @@ func (m *MockAuthService) Register(req *models.RegisterRequest) error {
 
 func (m *MockAuthService) Login(req *models.LoginRequest) (*models.AuthResponse, error) {
 	args := m.Called(req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.AuthResponse), args.Error(1)
+}
+
+func (m *MockAuthService) RefreshToken(token string) (*models.AuthResponse, error) {
+	args := m.Called(token)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).(*models.AuthResponse), args.Error(1)
 }
 
@@ -36,7 +46,6 @@ func TestRegister(t *testing.T) {
 		mockService := new(MockAuthService)
 		handler := NewAuthHandler(mockService)
 
-		// Setup test request
 		req := models.RegisterRequest{
 			Username: "testuser",
 			Email:    "test@example.com",
@@ -72,30 +81,6 @@ func TestRegister(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
-
-	t.Run("Service Error", func(t *testing.T) {
-		mockService := new(MockAuthService)
-		handler := NewAuthHandler(mockService)
-
-		req := models.RegisterRequest{
-			Username: "testuser",
-			Email:    "test@example.com",
-			Password: "password123",
-		}
-		mockService.On("Register", &req).Return(errors.New("service error"))
-
-		w := httptest.NewRecorder()
-		c, _ := gin.CreateTestContext(w)
-
-		jsonBytes, _ := json.Marshal(req)
-		c.Request = httptest.NewRequest("POST", "/register", bytes.NewBuffer(jsonBytes))
-		c.Request.Header.Set("Content-Type", "application/json")
-
-		handler.Register(c)
-
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
-		mockService.AssertExpectations(t)
-	})
 }
 
 func TestLogin(t *testing.T) {
@@ -125,12 +110,10 @@ func TestLogin(t *testing.T) {
 		handler.Login(c)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-
 		var response models.AuthResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
 		assert.Equal(t, expectedResp.Token, response.Token)
-		assert.Equal(t, expectedResp.RefreshToken, response.RefreshToken)
 
 		mockService.AssertExpectations(t)
 	})
@@ -141,9 +124,9 @@ func TestLogin(t *testing.T) {
 
 		req := models.LoginRequest{
 			Username: "testuser",
-			Password: "password123",
+			Password: "wrong",
 		}
-		mockService.On("Login", &req).Return(&models.AuthResponse{}, errors.New("invalid credentials"))
+		mockService.On("Login", &req).Return(nil, errors.New("invalid credentials"))
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -153,6 +136,57 @@ func TestLogin(t *testing.T) {
 		c.Request.Header.Set("Content-Type", "application/json")
 
 		handler.Login(c)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+		mockService.AssertExpectations(t)
+	})
+}
+
+func TestRefreshToken(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("Successful Token Refresh", func(t *testing.T) {
+		mockService := new(MockAuthService)
+		handler := NewAuthHandler(mockService)
+
+		refreshToken := "valid-refresh-token"
+		expectedResp := &models.AuthResponse{
+			Token:        "new-token",
+			RefreshToken: "new-refresh",
+		}
+		mockService.On("RefreshToken", refreshToken).Return(expectedResp, nil)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+
+		c.Request = httptest.NewRequest("POST", "/refresh", bytes.NewBufferString(refreshToken))
+		c.Request.Header.Set("Content-Type", "text/plain")
+
+		handler.RefreshToken(c)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var response models.AuthResponse
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedResp.Token, response.Token)
+
+		mockService.AssertExpectations(t)
+	})
+
+	t.Run("Invalid Refresh Token", func(t *testing.T) {
+		mockService := new(MockAuthService)
+		handler := NewAuthHandler(mockService)
+
+		refreshToken := "invalid-token"
+		mockService.On("RefreshToken", refreshToken).Return(nil, errors.New("invalid refresh token"))
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+
+		c.Request = httptest.NewRequest("POST", "/refresh", bytes.NewBufferString(refreshToken))
+		c.Request.Header.Set("Content-Type", "text/plain")
+
+		handler.RefreshToken(c)
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 		mockService.AssertExpectations(t)

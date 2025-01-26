@@ -1,6 +1,8 @@
 package service
 
 import (
+	"errors"
+
 	"github.com/NBDor/eternalsphere-auth/internal/models"
 	"github.com/NBDor/eternalsphere-auth/internal/repository/postgres"
 	"golang.org/x/crypto/bcrypt"
@@ -9,15 +11,18 @@ import (
 type AuthServiceInterface interface {
 	Register(req *models.RegisterRequest) error
 	Login(req *models.LoginRequest) (*models.AuthResponse, error)
+	RefreshToken(token string) (*models.AuthResponse, error)
 }
 
 type AuthService struct {
-	userRepo *postgres.UserRepository
+	userRepo  *postgres.UserRepository
+	jwtSecret string
 }
 
-func NewAuthService(userRepo *postgres.UserRepository) *AuthService {
+func NewAuthService(userRepo *postgres.UserRepository, jwtSecret string) *AuthService {
 	return &AuthService{
-		userRepo: userRepo,
+		userRepo:  userRepo,
+		jwtSecret: jwtSecret,
 	}
 }
 
@@ -43,12 +48,33 @@ func (s *AuthService) Login(req *models.LoginRequest) (*models.AuthResponse, err
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
+		return nil, errors.New("invalid credentials")
+	}
+
+	tokenPair, err := generateTokenPair(user.ID, user.Username, s.jwtSecret)
+	if err != nil {
 		return nil, err
 	}
 
-	// TODO: Generate JWT tokens
 	return &models.AuthResponse{
-		Token:        "dummy-token",
-		RefreshToken: "dummy-refresh-token",
+		Token:        tokenPair.AccessToken,
+		RefreshToken: tokenPair.RefreshToken,
+	}, nil
+}
+
+func (s *AuthService) RefreshToken(token string) (*models.AuthResponse, error) {
+	userID, username, err := validateRefreshToken(token, s.jwtSecret)
+	if err != nil {
+		return nil, errors.New("invalid refresh token")
+	}
+
+	tokenPair, err := generateTokenPair(userID, username, s.jwtSecret)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.AuthResponse{
+		Token:        tokenPair.AccessToken,
+		RefreshToken: tokenPair.RefreshToken,
 	}, nil
 }
