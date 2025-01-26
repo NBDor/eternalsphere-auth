@@ -7,9 +7,11 @@ Authentication service for the Eternal Sphere platform.
 - PostgreSQL
 - eternalsphere-shared-go library
 - golang-migrate
+- Docker & Docker Compose (optional)
 
 ## Setup
 
+### Go Setup
 ```bash
 go mod init github.com/yourusername/eternalsphere-auth
 go mod tidy
@@ -31,6 +33,22 @@ migrate -path migrations -database "postgresql://user:password@localhost:5432/db
 
 # Rollback migrations
 migrate -path migrations -database "postgresql://user:password@localhost:5432/dbname?sslmode=disable" down
+```
+
+### Docker Setup
+Build and run:
+```bash
+docker-compose up --build
+```
+
+Stop services:
+```bash
+docker-compose down
+```
+
+Remove volumes:
+```bash
+docker-compose down -v
 ```
 
 ## Environment Variables
@@ -57,6 +75,8 @@ eternalsphere-auth/
 │   └── main.go           # Application entry point
 ├── internal/            # Internal packages
 ├── migrations/         # Database migrations
+├── Dockerfile         # Docker build instructions
+├── docker-compose.yml # Docker compose configuration
 └── README.md
 ```
 
