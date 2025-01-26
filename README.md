@@ -6,11 +6,31 @@ Authentication service for the Eternal Sphere platform.
 - Go 1.21+
 - PostgreSQL
 - eternalsphere-shared-go library
+- golang-migrate
 
 ## Setup
+
 ```bash
 go mod init github.com/yourusername/eternalsphere-auth
 go mod tidy
+```
+
+### Database Migrations
+Install golang-migrate:
+```bash
+go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+```
+
+Run migrations:
+```bash
+# Create new migration
+migrate create -ext sql -dir migrations -seq create_users_table
+
+# Apply migrations
+migrate -path migrations -database "postgresql://user:password@localhost:5432/dbname?sslmode=disable" up
+
+# Rollback migrations
+migrate -path migrations -database "postgresql://user:password@localhost:5432/dbname?sslmode=disable" down
 ```
 
 ## Environment Variables
@@ -34,13 +54,10 @@ JWT_SECRET=your-secret-key
 ```
 eternalsphere-auth/
 ├── cmd/
-│   └── main.go              # Application entry point
-├── internal/
-│   ├── config/             # Configuration management
-│   ├── handlers/           # HTTP request handlers
-│   ├── models/             # Data models
-│   ├── repository/         # Database operations
-│   └── service/            # Business logic
+│   └── main.go           # Application entry point
+├── internal/            # Internal packages
+├── migrations/         # Database migrations
+└── README.md
 ```
 
 ## API Endpoints
